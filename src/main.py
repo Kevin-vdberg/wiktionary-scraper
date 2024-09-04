@@ -1,26 +1,15 @@
 import string
+from src.lib.WiktionaryScraper.WiktionaryScraper import WiktionaryScraper
+from src.lib.WiktionaryScraper.types.Languages import Languages
 
-from src.lib.WiktionaryScraper.FrenchScraper.WiktionaryScraperFR import WiktionaryScraperFR
-from src.lib.WiktionaryScraper.PortugueseScraper.WiktionaryScraperPT import WiktionaryScraperPT
 
 def main():
-    # words = get_list_of_common_words()[20:50]
-    #
-    # for word in words:
-    #     result = WiktionaryScraperPT().request_word(word)
-    #     print(result)
-    portuguese_words = ['árvore','rosa','peixe','fogo','pardal']
-    french_words = ['arbre', 'rose', 'poisson','feu','moineau']
+    words = get_list_of_common_words()[0:50]
 
-    pt_scraper = WiktionaryScraperPT()
-    fr_scraper = WiktionaryScraperFR()
+    scraper = WiktionaryScraper()
 
-    for x in range(5):
-        pt = pt_scraper.request_word(portuguese_words[x])
-        fr = fr_scraper.request_word(french_words[x])
-
-        print(pt)
-        print(fr)
+    for word in words:
+        print (scraper.request_word(word,Languages.PT))
 
 
 def get_list_of_common_words():
