@@ -1,7 +1,11 @@
 import string
-import re
 import requests
 from bs4 import BeautifulSoup
+
+from src.lib.WiktionaryScraper.EnWiktionaryScraper import EnWiktionaryScraper
+from src.lib.WiktionaryScraper.PtWiktionaryScraper import PtWiktionaryScraper
+from src.lib.WiktionaryScraper.FrWiktionaryScraper import FrWiktionaryScraper
+
 from src.lib.WiktionaryScraper.types.Genders import Genders as gender_types
 from src.lib.WiktionaryScraper.types.Languages import Languages as language_types
 from src.lib.WiktionaryScraper.types.WordTypes import WordTypes as word_types
@@ -73,17 +77,21 @@ class WiktionaryScraper:
     def _check_language(self,soup: BeautifulSoup, language: language_types) -> bool:
 
         if language == language_types.FR:
-            return self._check_language_is_function(soup, self._check_language_is_french)
+            return self._check_language_is_function(soup, FrWiktionaryScraper.check_if_language_is_correct)
         elif language == language_types.PT:
-            return self._check_language_is_function(soup, self._check_language_is_portuguese)
+            return self._check_language_is_function(soup, PtWiktionaryScraper.check_language_is_correct)
+        elif language == language_types.EN:
+            return self._check_language_is_function(soup, EnWiktionaryScraper.check_language_is_correct)
         else:
             raise Exception(f'Error: language {language} not supported')
 
     def _get_word_info(self, soup: BeautifulSoup, language: language_types) -> dict:
         if language == language_types.FR:
-            return self._get_general_info_function(soup, self._get_general_info_french)
+            return self._get_general_info_function(soup, FrWiktionaryScraper.get_general_info)
         elif language == language_types.PT:
-            return self._get_general_info_function(soup, self._get_general_info_portuguese)
+            return self._get_general_info_function(soup, PtWiktionaryScraper.get_general_info)
+        elif language == language_types.EN:
+            return self._get_general_info_function(soup, EnWiktionaryScraper.get_general_info)
         else:
             raise Exception(f'Error: language {language} not supported')
 
@@ -112,70 +120,6 @@ class WiktionaryScraper:
             self._log_entry(str(e))
             raise Exception('Error while scraping word: ' + str(e))
 
-
-    #Language checks, because all wiktionary websites are different, the actual scraping varies per language
-    # TODO: These functions could be transferred to a language specific static class?
-
-    #French
-    def _check_language_is_french(self,soup: BeautifulSoup) -> bool:
-            main_content = soup.find('div', {'id': 'bodyContent'})
-            headers = main_content.find_all('span', {'class': 'sectionlangue'})
-
-            if headers[0].get('id') != 'fr' and headers[1].get('id') != 'fr':
-                correct_language = False
-            else:
-                correct_language = True
-
-            return correct_language
-    def _get_general_info_french(self, soup) -> dict:
-        #TODO: implement different wordtypes; only look at noun info for now
-
-        target_header = soup.find('h3', {'id': re.compile('^Nom_commun1?$')})
-        noun_info = target_header.find_next('p')
-
-        lemma = noun_info.find('b').text
-        pronunciations = [noun_info.find_next('span', {'class': 'API'}).text]
-        gender = noun_info.find_next('i').text
-
-        return {'lemma': lemma, 'gender': gender, 'pronunciations': pronunciations}
-    #Portuguese
-    def _check_language_is_portuguese(self, soup: BeautifulSoup) -> bool:
-        main_content = soup.find('div', {'id': 'bodyContent'})
-
-        if main_content.find('h1').get('id') != 'Português':
-            correct_language = False
-        else:
-            correct_language = True
-
-        return correct_language
-    def _get_general_info_portuguese(self, soup: BeautifulSoup) -> dict:
-        #TODO: implement different wordtypes; only look at noun info for now
-
-        target_header = soup.find('h2', {'id': re.compile('^Substantivo[1]?$')})
-        noun_info = target_header.find_next('p').text               #returns dictionary word and gender after , for example :
-        noun_info_splitted = noun_info.split(' ')
-
-        if len(noun_info_splitted) != 1:
-            lemma = self._clean_up_text(noun_info_splitted[0])
-            gender = self._clean_up_text(noun_info_splitted[1])
-        else:
-            lemma = self._clean_up_text(noun_info_splitted[0])
-            gender = 'UNKNOWN'
-
-        pronunciations = []
-        # TODO: Handle different regions
-        try:
-            target_section = soup.find('h2', {'id': 'Pronúncia'})
-            target_subsection = target_section.find_next('h3', {'id': 'Portugal'})
-            target_list = target_subsection.find_next('ul')
-
-            for p in target_list.find_all('span', {'class': 'ipa'}):
-                pronunciations.append(p.text)
-        except Exception as e:
-            self._log_entry(str(e))
-            pronunciations = []
-
-        return {'lemma': lemma, 'gender': gender, 'pronunciations': pronunciations}
 #General class functions
     def _translate_found_genders(self,gender: str) -> gender_types:
 
@@ -190,19 +134,6 @@ class WiktionaryScraper:
             return_gender =  ''
 
         return return_gender
-    @staticmethod
-    def _clean_up_text(text):
-        # Create a translation table that maps all punctuation characters to None
-        translator = str.maketrans('', '', string.punctuation)
-        clean_text = text.translate(translator)
-
-        # Remove punctuation using translate
-        translator = str.maketrans('', '', string.digits)
-        clean_text = clean_text.translate(translator)
-
-        clean_text = clean_text.strip()
-
-        return clean_text
 
     def _log_entry(self, log_data:str, log_type='DEBUG'):
         if self._logger is None:
